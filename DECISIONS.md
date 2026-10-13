@@ -1,47 +1,48 @@
-# Decisiones técnicas — traducción a React + Laravel
+# Technical decisions — translating the spec to React + Laravel
 
-Este documento traduce `plan.md` §1 (escrito para Python) al stack real del reto: **React + Laravel**,
-según piden los seis README. El negocio, las reglas, el modelo de datos y el contrato de la API
-**no cambian** — están fijos en `test-manager-library-3145556-docs/spec-python/` (o `spec-.net/`,
-mismo contenido de negocio). Lo que cambia aquí es solo la columna "Elección".
+This document translates `plan.md` §1 (written for Python) to the real stack of the challenge:
+**React + Laravel**, as required by the six repository READMEs. The business rules, the data model
+and the API contract **do not change** — they are fixed in
+`test-manager-library-3145556-docs/spec-python/` (or `spec-.net/`, same business content). Only the
+"Choice" column changes here.
 
-| # | Decisión | Elección (Python, spec) | Elección (este repo) | Por qué |
+| # | Decision | Choice (Python, spec) | Choice (this repo) | Why |
 |---|---|---|---|---|
-| D-01 | Lenguaje y runtime | Python 3.12 | PHP 8.3 + Laravel 11 | Stack del reto (README) |
-| D-02 | Framework HTTP | FastAPI | Laravel (rutas `routes/api.php`, prefijo `/api/v1`) | Contrato en `api-contract.md`, idéntico para ambos |
-| D-03 | Persistencia | SQLAlchemy 2 + Alembic | Eloquent + migraciones de Laravel, sobre PostgreSQL 16 | El esquema sigue siendo propiedad de las migraciones (ADR-001); `infra` levanta el motor vacío |
-| D-04 | Concurrencia | Testigo de versión + `CHECK` de rango | `CHECK` de rango en la migración (`ck_book_available_range`) + transacción con bloqueo optimista a nivel de fila (`lockForUpdate` o verificación de versión) | Mismo requisito, RNF-2: el motor es la última barrera |
-| D-05 | Fechas | `timestamptz`; reloj como puerto (`Clock`) | `timestamptz`; un `Clock` propio inyectable (no `now()` esparcido) para poder probar vencimientos sin esperar 14 días | Mismo motivo |
-| D-06 | Reporte | Consulta agregada por un puerto de lectura | Query Builder/Eloquent con una consulta agregada en un "read model" (clase de solo lectura) | Estable y barato, igual que el original |
-| D-07 | Objetos de valor | `Isbn`, `Quantity`, `DocumentNumber`, `DateRange` | Mismos conceptos como clases PHP inmutables en `app/Domain/ValueObjects/`, sin Eloquent | No tienen identidad; se validan en el dominio, no en el framework |
-| D-08 | Portadas | Disco local / S3 detrás de un puerto | `Storage` de Laravel (driver `local`, cambiable a `s3` por configuración) | Clave opaca (`cover_key`), nunca ruta ni bytes |
-| D-09 | Contraseñas | Argon2id detrás de `PasswordHasher` | `Hash::make()` de Laravel (Bcrypt/Argon2id vía `config/hashing.php`) | El dominio nunca ve la clave en claro (Artículo IX) |
-| D-10 | Arranque | La app crea el admin inicial desde `ADMIN_USERNAME`/`ADMIN_PASSWORD` | Igual: un `Seeder`/comando `artisan` idempotente que lee esas variables en el arranque, no en una migración | La base no puede producir el hash |
-| D-11 | Autenticación | JWT HS256, 8h, `sub` + `role` | JWT propio (HS256, 8h) emitido a mano con `firebase/php-jwt`, middleware de verificación + autorización por rol | Mismo contrato (`Authorization: Bearer <token>`); se evita el peso de un paquete de sesiones que no necesitamos (API sin estado) |
-| D-12 | Pruebas | pytest con fakes + base real en integración | Pest/PHPUnit: pruebas unitarias de dominio (sin framework), pruebas de *feature* contra la API real, migraciones aplicadas sobre Postgres real | Misma pirámide de pruebas |
+| D-01 | Language and runtime | Python 3.12 | PHP 8.3 + Laravel 11 | Challenge stack (README) |
+| D-02 | HTTP framework | FastAPI | Laravel (`routes/api.php`, prefix `/api/v1`) | Same contract in `api-contract.md` for both |
+| D-03 | Persistence | SQLAlchemy 2 + Alembic | Eloquent + Laravel migrations, on PostgreSQL 16 | The schema still belongs to the migrations (ADR-001); `infra` boots an empty engine |
+| D-04 | Concurrency | Version witness + range `CHECK` | Range `CHECK` in the migration (`ck_book_available_range`) + a transaction with row-level locking (`lockForUpdate`) | Same requirement, RNF-2: the engine is the last line of defense |
+| D-05 | Dates | `timestamptz`; the clock is a port (`Clock`) | `timestamptz`; an injectable `Clock` of our own (no `now()` scattered around) so due dates can be tested without waiting 14 days | Same reason |
+| D-06 | Report | One aggregated query behind a read port | Query Builder/Eloquent with one aggregated query in a read-only class | Stable and cheap, same as the original |
+| D-07 | Value objects | `Isbn`, `Quantity`, `DocumentNumber`, `DateRange` | Same concepts as immutable PHP classes in `app/Domain/ValueObjects/`, no Eloquent | They have no identity; validated in the domain, not the framework |
+| D-08 | Covers | Local disk / S3 behind a port | Laravel `Storage` (`local` driver, swappable to `s3` by config) | Opaque key (`cover_key`), never a path or raw bytes |
+| D-09 | Passwords | Argon2id behind `PasswordHasher` | Laravel `Hash::make()` (Bcrypt/Argon2id via `config/hashing.php`) | The domain never sees the plain password (Article IX) |
+| D-10 | Bootstrap | The app creates the initial admin from `ADMIN_USERNAME`/`ADMIN_PASSWORD` | Same: an idempotent seeder/artisan command that reads those variables on boot, not in a migration | The database cannot produce the hash |
+| D-11 | Authentication | JWT HS256, 8h, `sub` + `role` | Hand-rolled JWT (HS256, 8h) issued with `firebase/php-jwt`, a verification middleware plus role-based authorization | Same contract (`Authorization: Bearer <token>`); avoids the overhead of a session package we don't need (stateless API) |
+| D-12 | Tests | pytest with fakes + a real database for integration | Pest/PHPUnit: domain unit tests (no framework), feature tests against the real API, migrations applied on a real Postgres | Same test pyramid |
 
-## Qué no se traduce (es negocio, no tecnología)
+## What is not translated (business, not technology)
 
-Historias de usuario (HU-01 a HU-10), reglas de negocio (RN-1 a RN-6), requisitos no funcionales
-(RNF-1 a RNF-5), el modelo de datos completo (`data-model.md`) y el contrato HTTP (`api-contract.md`)
-se implementan **tal cual** están escritos. Ninguna decisión de esta tabla los modifica.
+User stories (HU-01 to HU-10), business rules (RN-1 to RN-6), non-functional requirements (RNF-1 to
+RNF-5), the full data model (`data-model.md`) and the HTTP contract (`api-contract.md`) are
+implemented **as written**. No decision in this table changes them.
 
-## Estructura de carpetas (equivalente Laravel de `architecture.md` §2)
+## Folder structure (Laravel equivalent of `architecture.md` §2)
 
 ```text
 app/
-├── Domain/              # Book, Loan, LoanItem, Member, User; Isbn, Quantity, DateRange (PHP puro, sin Eloquent)
-├── Services/            # Casos de uso: LendBooksService, ReturnItemService, LoginService, ...
-├── Models/              # Eloquent: Category, Book, Member, Loan, LoanItem, User (adaptador de persistencia)
+├── Domain/              # Book, Loan, LoanItem, Member, User; Isbn, Quantity, DateRange (plain PHP, no Eloquent)
+├── Services/            # Use cases: LendBooksService, ReturnItemService, LoginService, ...
+├── Models/               # Eloquent: Category, Book, Member, Loan, LoanItem, User (persistence adapter)
 ├── Http/
-│   ├── Controllers/Api/ # Controladores finos: validan, llaman a Services/, formatean respuesta
-│   ├── Requests/        # Form Requests = validación de entrada
-│   └── Middleware/      # JwtAuthenticate, EnsureRole
-└── Support/             # Clock, TokenIssuer, CoverStorage (los "puertos" del spec, como interfaces PHP)
+│   ├── Controllers/Api/ # Thin controllers: validate, call Services/, format the response
+│   ├── Requests/        # Form Requests = input validation
+│   └── Middleware/       # JwtAuthenticate, EnsureRole
+└── Support/              # Clock, TokenIssuer, CoverStorage (the "ports" of the spec, as PHP interfaces)
 ```
 
-Los controladores no contienen reglas de negocio; las reglas viven en `Domain/` y `Services/`. Esto
-no es la arquitectura hexagonal con `import-linter` del spec Python (no es idiomático en Laravel y no
-alcanza el tiempo de la prueba para montar esa verificación automática), pero conserva el principio:
-el negocio no depende de los detalles de framework, y hay un único lugar (`Services/`) donde se
-orquesta cada caso de uso.
+Controllers hold no business rules; the rules live in `Domain/` and `Services/`. This is not the
+hexagonal architecture with `import-linter` from the Python spec (not idiomatic in Laravel, and the
+test's time budget doesn't cover building that automated check), but it keeps the principle: business
+logic doesn't depend on framework details, and there is a single place (`Services/`) where each use
+case is orchestrated.

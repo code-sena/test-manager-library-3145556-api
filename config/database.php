@@ -95,7 +95,10 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => env('DB_SCHEMA', 'library'),
+            // Laravel's own bookkeeping (the `migrations` table) stays in `public`; our six
+            // business tables are explicitly schema-qualified as `library.*` in every migration,
+            // model and raw query, so `library` only ever holds what data-model.md §3 documents.
+            'search_path' => env('DB_SCHEMA', 'public'),
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
