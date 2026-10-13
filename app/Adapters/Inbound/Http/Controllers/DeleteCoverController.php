@@ -2,12 +2,20 @@
 
 namespace App\Adapters\Inbound\Http\Controllers;
 
+use App\Application\Services\UploadCoverService;
 use Illuminate\Http\JsonResponse;
 
 class DeleteCoverController
 {
-    public function __invoke(): JsonResponse
+    public function __construct(
+        private readonly UploadCoverService $service,
+    ) {
+    }
+
+    public function __invoke(string $id): JsonResponse
     {
-        return response()->json(['message' => 'Not yet implemented'], 501);
+        $this->service->delete($id);
+
+        return response()->json(null, 204);
     }
 }
