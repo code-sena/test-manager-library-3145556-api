@@ -1,0 +1,7 @@
+/vendor
+/node_modules
+/storage/covers/*
+!/storage/covers/.gitkeep
+.env
+.env.backup
+.phpunit.result.cache

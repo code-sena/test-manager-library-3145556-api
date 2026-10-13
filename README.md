@@ -1,50 +1,69 @@
 # test-manager-library-3145556-api
 
-> **Prueba técnica · Ficha ADSO 3145556**
-> Entrega: **martes 13 de octubre de 2026, a las 5:00 p. m.** (17:00, hora Colombia).
+Manager Library API — Laravel 11 with hexagonal architecture on PostgreSQL 16.
 
-Este repositorio es el **backend** de *Manager Library*, en **PHP con Laravel**. **Empieza vacío a propósito**: se construye en el fork de cada aprendiz.
+## Run
 
-## Instrucciones
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --force
+php artisan library:bootstrap-admin
+php artisan serve
+```
 
-Cada aprendiz debe **crear el fork** de los seis repositorios del proyecto y **resolver el proyecto
-con el spec planteado**.
+Or with Docker (from `infra/`):
 
-1. Hacer fork, a su cuenta de GitHub, de cada repositorio de la tabla del final.
-2. Leer el spec en [`test-manager-library-3145556-docs`](https://github.com/code-sena/test-manager-library-3145556-docs).
-   Se entrega en dos versiones: `spec-python/` y `spec-.net/`.
-3. Desarrollar en los forks.
+```bash
+docker compose up -d
+```
 
-## El reto se desarrolla con React y PHP (Laravel)
+## Test
 
-El spec está escrito para Python y para .NET, pero el reto **no** se hace en esos lenguajes:
+```bash
+composer install
+php artisan test
+```
 
-| Capa | Tecnología del reto |
-|---|---|
-| Frontend | React |
-| Backend | PHP con Laravel |
+## Endpoints
 
-Lo que el spec define sobre el negocio —historias, criterios de aceptación, reglas, contrato de la
-API, modelo de datos— se respeta. Lo que define sobre la tecnología se traduce a React y Laravel.
+All endpoints are under `/api/v1`. See `routes/api.php` and the API contract in `docs/spec-laravel/`.
 
-## La prueba no consiste en escribir el código
+| Method | Route | Role |
+|---|---|---|
+| GET | `/health` | public |
+| GET | `/api/v1/health` | public |
+| POST | `/api/v1/auth/login` | public |
+| GET | `/api/v1/categories` | authenticated |
+| GET | `/api/v1/books` | authenticated |
+| POST | `/api/v1/books` | admin |
+| GET | `/api/v1/books/{id}` | authenticated |
+| PUT | `/api/v1/books/{id}` | admin |
+| DELETE | `/api/v1/books/{id}` | admin |
+| GET | `/api/v1/books/{id}/cover` | authenticated |
+| PUT | `/api/v1/books/{id}/cover` | admin |
+| DELETE | `/api/v1/books/{id}/cover` | admin |
+| GET | `/api/v1/members` | admin, librarian |
+| POST | `/api/v1/members` | admin, librarian |
+| GET | `/api/v1/members/{id}` | admin, librarian |
+| POST | `/api/v1/users` | admin |
+| GET | `/api/v1/loans/overdue` | admin, librarian |
+| GET | `/api/v1/loans/{id}` | admin, librarian |
+| GET | `/api/v1/loans` | admin, librarian |
+| POST | `/api/v1/loans` | admin, librarian |
+| POST | `/api/v1/loans/{loanId}/items/{itemId}/return` | admin, librarian |
+| GET | `/api/v1/reports/most-borrowed` | admin |
 
-El propósito principal es ver la **capacidad de desempeño con SDD** (*Spec-Driven Development*,
-desarrollo guiado por especificación): cómo se lee, se interpreta y se aplica una especificación
-para llevarla a un stack distinto. El código es el medio, no el fin.
+## Architecture
 
-## Entrega
+Hexagonal (ports and adapters):
 
-Cuenta lo que quede **subido a los forks antes de las 5:00 p. m.** (17:00). Lo que llegue después no se revisa.
-No hay prórroga: suban avances parciales con commits pequeños durante la prueba.
+- `app/Domain/` — pure PHP, no framework dependencies
+- `app/Application/` — use cases + ports (interfaces)
+- `app/Adapters/` — HTTP controllers, middleware, Eloquent repositories, JWT, Argon2
+- `app/Bootstrap/` — sole composition point
 
-## Los seis repositorios
+## Environment variables
 
-| Repositorio | Qué va ahí |
-|---|---|
-| [`test-manager-library-3145556-docs`](https://github.com/code-sena/test-manager-library-3145556-docs) | El spec: `spec-python/` y `spec-.net/` |
-| [`test-manager-library-3145556-api`](https://github.com/code-sena/test-manager-library-3145556-api) | Backend en PHP (Laravel) |
-| [`test-manager-library-3145556-app`](https://github.com/code-sena/test-manager-library-3145556-app) | Frontend en React |
-| [`test-manager-library-3145556-page`](https://github.com/code-sena/test-manager-library-3145556-page) | Sitio público estático de presentación |
-| [`test-manager-library-3145556-infra`](https://github.com/code-sena/test-manager-library-3145556-infra) | Contenedores, red, volúmenes y motor de base de datos vacío |
-| [`test-manager-library-3145556-tool`](https://github.com/code-sena/test-manager-library-3145556-tool) | Utilidades: sembrador de datos de demostración |
+See `.env.example`.
