@@ -23,18 +23,6 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->render(function (DomainException $e, Request $request) {
-            $mapped = \App\Adapters\Inbound\Http\ErrorMapper::toResponse($e);
-
-            if ($mapped !== null && $request->is('api/*')) {
-                return response()->json([
-                    'code' => $mapped['code'],
-                    'message' => $mapped['message'],
-                    'details' => $mapped['details'],
-                ], $mapped['status']);
-            }
-        });
-
         $exceptions->render(function (ValidationException $e, Request $request) {
             return response()->json([
                 'code' => 'VALIDATION_ERROR',
